@@ -19,62 +19,41 @@ public class Crypto {
         return e.encode(x.toByteArray());
     }
     static byte[] fixedXOR(String one, String two){
-        BigInteger x1 = new BigInteger(one,16);
-        BigInteger x2 = new BigInteger(two,16);
-        return x1.xor(x2).toByteArray();
+        byte[] x1 = new BigInteger(one,16).toByteArray();
+        byte[] x2 = new BigInteger(two,16).toByteArray();
+        return fixedXOR(x1,x2);
     }
-    static byte[] fixedXOR(byte[] one, byte[] two){
-        BigInteger x1 = new BigInteger(one);
-        BigInteger x2 = new BigInteger(two);
-        return x1.xor(x2).toByteArray();
-    }
-    static byte[] singleByteXOR(String hex){
-        byte[] message = new BigInteger(hex,16).toByteArray();
-        byte[] cypher = new byte[message.length];
-        //System.out.println(new String(message));
-        byte[] result  = {};
-        int highscore = 0;
-        for(byte i=Byte.MIN_VALUE;i<Byte.MAX_VALUE;i++){
-            int score = 0;
-            boolean whitespace = true;
-            Arrays.fill(cypher,i);
-            byte [] maybe = Crypto.fixedXOR(hex,new BigInteger(cypher).toString(16));
-            String s = new String(maybe);
-            for(char j :s.toCharArray()){
-                if(Character.isWhitespace(j)&&!whitespace){
-                    score ++;
-                    whitespace = true;
-                }
-                else if(Character.isLetterOrDigit(j)){
-                    whitespace = false;
-                    score++;
-                }
-                else score--;
+    static byte[] fixedXOR(byte[] x1, byte[] x2){
+        byte[] result = new byte[x1.length];
+        for(int i=0;i<x1.length;i++){
+            try {
+                result[i]= (byte) (x1[i] ^ x2[i]);
             }
-            if(score>highscore) {
-                highscore=score;
-                result = maybe;
+            catch (IndexOutOfBoundsException e){
+                System.out.println("Buffers not equal length");
             }
         }
         return result;
     }
+    static byte[] singleByteXOR(String hex){
+        return singleByteXOR(new BigInteger(hex,16).toByteArray());
+    }
     static byte[] singleByteXOR(byte[] message){
-        //byte[] message = new BigInteger(hex,16).toByteArray();
         byte[] cypher = new byte[message.length];
         //System.out.println(new String(message));
-        byte[] result  = {};
-        int highscore = Integer.MIN_VALUE;
+        byte[] result  = {}, maybe = {};
+        int highScore = Integer.MIN_VALUE, score =0;
         for(byte i=Byte.MIN_VALUE;i<Byte.MAX_VALUE;i++){
             Arrays.fill(cypher,i);
-            byte [] maybe = Crypto.fixedXOR(message,cypher);
+            maybe = Crypto.fixedXOR(message,cypher);
             String s = new String(maybe);
-            int score = score(s);
-            System.out.println(score);
-            if(score>highscore) {
-                highscore=score;
+            score = score(s);
+            if(score>highScore) {
+                highScore=score;
                 result = maybe;
             }
         }
+        //System.out.println(new String(message));
         return result;
     }
     static int score(String s){
@@ -103,7 +82,7 @@ public class Crypto {
                 }
                 whitespace = false;
             }
-            else score -=100;
+            else score -=10;
         }
         return score;
     }
@@ -155,11 +134,49 @@ public class Crypto {
         }
         return dis;
     }
+    static void printFileBytes(byte[] something, int limit) {
+        for (int i=0; i < limit; i++) {
+            System.out.print(something[i]);
+            System.out.print(",");
+        }
+        System.out.println();
+    }
+    static void printArrayOfBytes(byte[][] arrayofbytes, int rows) {
+        int currRow = 0;
+        for(int i=0;i<arrayofbytes.length;i++){
+            if (currRow >= rows) {
+                return;
+            }
+            for(int j=0;j<arrayofbytes[0].length;j++){
+
+                System.out.print(arrayofbytes[i][j]);
+                System.out.print(", ");
+
+            }
+            currRow += 1;
+            System.out.println();
+        }
+    }
+    static int keySize(byte[] file){
+        int keysize=0;
+        float minDist=-1;
+        //for(int j=0;j<=20;j+=5){
+        for(int i = 2; i<=40;i++){
+            float dist = hammingDistance(Arrays.copyOfRange(file,0,0+i),Arrays.copyOfRange(file,i,i*2));
+            float dist2 = hammingDistance(Arrays.copyOfRange(file,i*2,i*3),Arrays.copyOfRange(file,i*3,i*4));
+            float normalizedDist = (dist+dist2)/(i*2);
+            //float normalizedDist = dist/i;
+            if(minDist==-1 || normalizedDist<minDist){
+                minDist=normalizedDist;
+                keysize=i;
+            }
+            System.out.println("Hamming Distance: "+dist+"\t"+"Normaliszed: "+normalizedDist+"\t"+"I: "+i+"\t"+"Keysize: "+keysize);
+        }return keysize;
+    }
     static byte[] key(){
         Scanner in;
         String s="";
-        int keysize=0;
-        float minDist=-1;
+        //int keysize=0;
         HashMap<Integer, ArrayList<Byte>> transposeFile = new HashMap<>();
         try {
             in = new Scanner(new File("6.txt"));
@@ -173,37 +190,68 @@ public class Crypto {
         Base64.Decoder dec = Base64.getDecoder();
         byte[] file = dec.decode(s);
         byte[] finalFile = new byte[file.length];
-        for(int j=0;j<=20;j+=5){
-            for(int i = 2; i<=40;i++){
-                float dist = hammingDistance(Arrays.copyOfRange(file,j,j+i),Arrays.copyOfRange(file,j+i,j+i*2));
-                float temp = dist/i;
-                if(minDist==-1 || temp<minDist){
-                    minDist=temp;
-                    keysize=i;
+
+        //System.out.println("== fileBytes == ");
+        //printFileBytes(file, 10);
+        int keysize = keySize(file);
+        //}
+        double chunkLength = Math.ceil(file.length/keysize);
+
+        //System.out.println("chunkLength: "+chunkLength+"\nKeySize: "+keysize);
+        byte[][] keyChunks = new byte[(int) chunkLength][keysize];
+        byte[][] transposedChunks = new byte[keysize][(int) chunkLength];
+        byte[][] decryptedChunks = new byte[keysize][(int) chunkLength];
+        // System.out.println("Original File:\n"+new String(Arrays.copyOfRange(file,0,30)));
+        int currValue = 0;
+        //broke the file into keySize length chunks
+        for(int i=0;i<keyChunks.length;i++){
+            //System.out.println("i: "+i+".length: "+keyChunks.length);
+            for(int j=0;j<keyChunks[i].length;j++){
+                if (currValue < file.length) {
+                    // System.out.println("value : " + file[currValue]);
+                    keyChunks[i][j] = file[currValue];
+                    currValue += 1;
+                } else {
+                    keyChunks[i][j] = 0;
                 }
-                //System.out.println("Hamming Distance: "+dist+"\t"+"Normaliszed: "+temp+"\t"+"I: "+i+"\t"+"Keysize: "+keysize);
+            }
+//            System.out.println("KeyChunks["+i+"]:"+new String(keyChunks[i]));
+        }
+
+        //System.out.println("== keyChunks ==");
+        //printArrayOfBytes(keyChunks, 5);
+        //System.out.println(keyChunks);
+
+        //Transposes those chunks into a new array
+        for (int j = 0; j < keyChunks[0].length; j++) {
+            for(int i=0;i<keyChunks.length;i++) {
+                //System.out.println("i: "+i+".length: "+keyChunks.length);
+                //System.out.println("i: "+i+" j :"+j);
+                transposedChunks[j][i] = keyChunks[i][j];
             }
         }
-        for(int i=0;i<keysize;i++){
-            transposeFile.put(i,new ArrayList<Byte>());
+
+        //System.out.println("== transposedChunks ==");
+        //printArrayOfBytes(transposedChunks, 5);
+        //run SingleByteXOR on each chunk
+        for(int i=0;i<transposedChunks.length;i++){
+            decryptedChunks[i]=singleByteXOR(transposedChunks[i]);
         }
-        for(int i = 0; i<file.length;i++){
-            transposeFile.get(i%keysize).add(file[i]);
-        }
-        byte[][] keys = new byte[keysize][];
-        for(int i:transposeFile.keySet()){
-            ArrayList<Byte> c = transposeFile.get(i);
-            byte[] chunk = new byte[c.size()];
-            for(int j =0;j<c.size();j++)
-                chunk[j]=c.get(i).byteValue();
-            chunk = singleByteXOR(chunk);
-            System.out.println(new String(chunk));
-            keys[i] = chunk;
-            //System.out.println(new String(keys[i]));
-        }
-        for(int i = 0; i<file.length;i++){
-            finalFile[i]=keys[i%keysize][i/keysize];
-        }
-        return finalFile;
+        byte[] decryptedFile = new byte[file.length];
+        int index =0;
+        //loopy:
+        for(int i=0;i<decryptedChunks[0].length;i++)
+            for(int j =0;j<decryptedChunks.length;j++){
+                if(index<decryptedFile.length){
+                    decryptedFile[index]=decryptedChunks[j][i];
+                    index++;
+                }
+            }
+        //System.out.println("== decrypted bytes ==");
+        //printFileBytes(decryptedFile, 10);
+        //System.out.println("== decryptedChunks ==");
+        //printArrayOfBytes(decryptedChunks, 5);
+        //System.out.println("Decrypted File:\n"+new String(decryptedFile));
+        return decryptedFile;
     }
 }
