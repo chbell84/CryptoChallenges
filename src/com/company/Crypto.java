@@ -40,7 +40,6 @@ public class Crypto {
     }
     static byte[] singleByteXOR(byte[] message){
         byte[] cypher = new byte[message.length];
-        //System.out.println(new String(message));
         byte[] result  = {}, maybe = {};
         int highScore = Integer.MIN_VALUE, score =0;
         for(byte i=Byte.MIN_VALUE;i<Byte.MAX_VALUE;i++){
@@ -53,7 +52,6 @@ public class Crypto {
                 result = maybe;
             }
         }
-        //System.out.println(new String(message));
         return result;
     }
     static int score(String s){
@@ -124,18 +122,17 @@ public class Crypto {
         return result;
     }
     static int hammingDistance(byte[] a, byte[] b){
-        //a=hexTo64(new BigInteger(a).toString(16));
-        //b=hexTo64(new BigInteger(b).toString(16));
-        return hammingDistance(new String(a), new String(b));
+        int count =0;
+        for(byte i:fixedXOR(a,b)){
+            for(int j=0;j<7;j++)
+                if((i >> j)%2==1){
+                    count++;
+                }
+        }
+        return count;
     }
     static int hammingDistance(String a, String b){
-        a = new BigInteger(a.getBytes()).toString(2);
-        b = new BigInteger(b.getBytes()).toString(2);
-        int dis = Math.abs(a.length()-b.length());
-        for(int i=0;i<Math.min(a.length(),b.length());i++){
-            if(a.toCharArray()[i]!=b.toCharArray()[i]) dis++;
-        }
-        return dis;
+        return hammingDistance(a.getBytes(),b.getBytes());
     }
     static void printFileBytes(byte[] something, int limit) {
         for (int i=0; i < limit; i++) {
@@ -161,27 +158,24 @@ public class Crypto {
         }
     }
     static int[] keySize(byte[] file){
-        int[] keysize= new int[]{0,0,0};
-        int keyIndex=0;
-        float[] minDist=new float[]{-1,-1,-1};
-        //for(int j=0;j<=20;j+=5){
+        int[] keysize= new int[3];
+        Arrays.fill(keysize,0);
+        boolean full = false;
+        float[] minDist=new float[keysize.length];
+        Arrays.fill(minDist, -1);
         for(int i = 2; i<=40;i++){
-            float dist = hammingDistance(Arrays.copyOfRange(file,0,0+i),Arrays.copyOfRange(file,i,i*2));// +
-                    //hammingDistance(Arrays.copyOfRange(file,i*2,i*3),Arrays.copyOfRange(file,i*3,i*4));
-            float normalizedDist = dist/(i);
-            if(minDist[0]==-1 || normalizedDist<minDist[0]){
-                minDist[0]=normalizedDist;
-                keysize[0]=i;
+            byte[] r1 = Arrays.copyOfRange(file,0,0+i), r2=Arrays.copyOfRange(file,i,i*2), r3=Arrays.copyOfRange(file,i*2,i*3),r4=Arrays.copyOfRange(file,i*3,i*4);
+            float dist = hammingDistance(r1,r2) + hammingDistance(r2, r3) + hammingDistance(r3,r4);
+            float normalizedDist = dist/(i*3);
+            for(int j=0;j<keysize.length;j++)
+            {
+                if(minDist[j]==-1 || normalizedDist<minDist[j]&&full){
+                    minDist[j]=normalizedDist;
+                    keysize[j]=i;
+                    if(j==keysize.length-1) full=true;
+                    break;
+                }
             }
-            else if(minDist[1]==-1 || normalizedDist<minDist[1]){
-                minDist[1]=normalizedDist;
-                keysize[1]=i;
-            }
-            else if(minDist[2]==-1 || normalizedDist<minDist[2]){
-                minDist[2]=normalizedDist;
-                keysize[2]=i;
-            }
-            //System.out.println("Hamming Distance: "+dist+"\t"+"Normaliszed: "+normalizedDist+"\t"+"I: "+i+"\t"+"Keysize: "+keysize);
         }return keysize;
     }
     static byte[] key(){
@@ -200,7 +194,6 @@ public class Crypto {
         byte[] result={},temp;
         int highscore=Integer.MIN_VALUE,score;
         int[] keysize = keySize(file);
-        //int[] keysize = new int[]{2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40};
 
         //try to decrypt at each keysize in the array,
         //score the resulting strings and return the best one
