@@ -61,10 +61,13 @@ public class Crypto {
         boolean whitespace = true;
         HashMap<Character, Integer> frequency = new HashMap<>();
         for(char j :s.toCharArray()){
-            if(Character.isWhitespace(j)&&!whitespace){
-                score ++;
-                whitespace = true;
-                frequency = new HashMap<>();
+            if(Character.isWhitespace(j)){
+                if(!whitespace){
+                    score ++;
+                    whitespace = true;
+                    frequency = new HashMap<>();
+                }
+                else score--;
             }
             else if(Character.isLetterOrDigit(j)){
                 if(frequency.containsKey(j)){
@@ -157,27 +160,33 @@ public class Crypto {
             System.out.println();
         }
     }
-    static int keySize(byte[] file){
-        int keysize=0;
-        float minDist=-1;
+    static int[] keySize(byte[] file){
+        int[] keysize= new int[]{0,0,0};
+        int keyIndex=0;
+        float[] minDist=new float[]{-1,-1,-1};
         //for(int j=0;j<=20;j+=5){
         for(int i = 2; i<=40;i++){
-            float dist = hammingDistance(Arrays.copyOfRange(file,0,0+i),Arrays.copyOfRange(file,i,i*2));
-            float dist2 = hammingDistance(Arrays.copyOfRange(file,i*2,i*3),Arrays.copyOfRange(file,i*3,i*4));
-            float normalizedDist = (dist+dist2)/(i*2);
-            //float normalizedDist = dist/i;
-            if(minDist==-1 || normalizedDist<minDist){
-                minDist=normalizedDist;
-                keysize=i;
+            float dist = hammingDistance(Arrays.copyOfRange(file,0,0+i),Arrays.copyOfRange(file,i,i*2));// +
+                    //hammingDistance(Arrays.copyOfRange(file,i*2,i*3),Arrays.copyOfRange(file,i*3,i*4));
+            float normalizedDist = dist/(i);
+            if(minDist[0]==-1 || normalizedDist<minDist[0]){
+                minDist[0]=normalizedDist;
+                keysize[0]=i;
             }
-            System.out.println("Hamming Distance: "+dist+"\t"+"Normaliszed: "+normalizedDist+"\t"+"I: "+i+"\t"+"Keysize: "+keysize);
+            else if(minDist[1]==-1 || normalizedDist<minDist[1]){
+                minDist[1]=normalizedDist;
+                keysize[1]=i;
+            }
+            else if(minDist[2]==-1 || normalizedDist<minDist[2]){
+                minDist[2]=normalizedDist;
+                keysize[2]=i;
+            }
+            //System.out.println("Hamming Distance: "+dist+"\t"+"Normaliszed: "+normalizedDist+"\t"+"I: "+i+"\t"+"Keysize: "+keysize);
         }return keysize;
     }
     static byte[] key(){
         Scanner in;
         String s="";
-        //int keysize=0;
-        HashMap<Integer, ArrayList<Byte>> transposeFile = new HashMap<>();
         try {
             in = new Scanner(new File("6.txt"));
             while(in.hasNext()){
@@ -186,60 +195,58 @@ public class Crypto {
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-        //System.out.println(s);
         Base64.Decoder dec = Base64.getDecoder();
         byte[] file = dec.decode(s);
-        byte[] finalFile = new byte[file.length];
+        byte[] result={},temp;
+        int highscore=Integer.MIN_VALUE,score;
+        int[] keysize = keySize(file);
+        //int[] keysize = new int[]{2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40};
 
-        //System.out.println("== fileBytes == ");
-        //printFileBytes(file, 10);
-        int keysize = keySize(file);
-        //}
+        //try to decrypt at each keysize in the array,
+        //score the resulting strings and return the best one
+        for(int key:keysize){
+            System.out.println("Key: "+key);
+            temp = decrypter(file, key);
+            score = score(new String(temp));
+            if(score>highscore){
+                highscore=score;
+                result=temp;
+            }
+        }
+        return result;
+    }
+    static byte[] decrypter(byte[] file, int keysize){
         double chunkLength = Math.ceil(file.length/keysize);
-
-        //System.out.println("chunkLength: "+chunkLength+"\nKeySize: "+keysize);
         byte[][] keyChunks = new byte[(int) chunkLength][keysize];
         byte[][] transposedChunks = new byte[keysize][(int) chunkLength];
         byte[][] decryptedChunks = new byte[keysize][(int) chunkLength];
-        // System.out.println("Original File:\n"+new String(Arrays.copyOfRange(file,0,30)));
         int currValue = 0;
+
         //broke the file into keySize length chunks
         for(int i=0;i<keyChunks.length;i++){
-            //System.out.println("i: "+i+".length: "+keyChunks.length);
             for(int j=0;j<keyChunks[i].length;j++){
                 if (currValue < file.length) {
-                    // System.out.println("value : " + file[currValue]);
                     keyChunks[i][j] = file[currValue];
                     currValue += 1;
                 } else {
                     keyChunks[i][j] = 0;
                 }
             }
-//            System.out.println("KeyChunks["+i+"]:"+new String(keyChunks[i]));
         }
-
-        //System.out.println("== keyChunks ==");
-        //printArrayOfBytes(keyChunks, 5);
-        //System.out.println(keyChunks);
 
         //Transposes those chunks into a new array
         for (int j = 0; j < keyChunks[0].length; j++) {
             for(int i=0;i<keyChunks.length;i++) {
-                //System.out.println("i: "+i+".length: "+keyChunks.length);
-                //System.out.println("i: "+i+" j :"+j);
                 transposedChunks[j][i] = keyChunks[i][j];
             }
         }
 
-        //System.out.println("== transposedChunks ==");
-        //printArrayOfBytes(transposedChunks, 5);
         //run SingleByteXOR on each chunk
         for(int i=0;i<transposedChunks.length;i++){
             decryptedChunks[i]=singleByteXOR(transposedChunks[i]);
         }
         byte[] decryptedFile = new byte[file.length];
         int index =0;
-        //loopy:
         for(int i=0;i<decryptedChunks[0].length;i++)
             for(int j =0;j<decryptedChunks.length;j++){
                 if(index<decryptedFile.length){
@@ -247,11 +254,6 @@ public class Crypto {
                     index++;
                 }
             }
-        //System.out.println("== decrypted bytes ==");
-        //printFileBytes(decryptedFile, 10);
-        //System.out.println("== decryptedChunks ==");
-        //printArrayOfBytes(decryptedChunks, 5);
-        //System.out.println("Decrypted File:\n"+new String(decryptedFile));
         return decryptedFile;
     }
 }
