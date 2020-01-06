@@ -1,10 +1,15 @@
 package com.company;
 
+import javax.crypto.Cipher;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public class Crypto {
@@ -248,5 +253,28 @@ public class Crypto {
                 }
             }
         return decryptedFile;
+    }
+    static byte[] aesECBDecrypt(){
+        Scanner in;
+        String s="";
+        byte[] output  = new byte[]{};
+        try {
+            in = new Scanner(new File("7.txt"));
+            while(in.hasNext()){
+                s+=in.nextLine();
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        Base64.Decoder d  = Base64.getDecoder();
+        byte[] message = d.decode(s);
+        try {
+            Cipher c = Cipher.getInstance("AES/ECB/NoPadding");
+            c.init(Cipher.DECRYPT_MODE,new SecretKeySpec("YELLOW SUBMARINE".getBytes(), "AES"));
+            output = c.doFinal(message);
+        } catch (Exception e) {
+            System.out.println("there was and error: "+e.toString());
+        }
+        return output;
     }
 }
