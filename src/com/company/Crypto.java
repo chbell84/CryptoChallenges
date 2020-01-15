@@ -13,6 +13,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public class Crypto {
+
+    //Set 1 Challenge 1
     static String hexTo64String(String hex){
         BigInteger x  = new BigInteger(hex,16);
         Base64.Encoder e = Base64.getEncoder();
@@ -23,6 +25,8 @@ public class Crypto {
         Base64.Encoder e = Base64.getEncoder();
         return e.encode(x.toByteArray());
     }
+
+    //Set 1 Challenge 2
     static byte[] fixedXOR(String one, String two){
         byte[] x1 = new BigInteger(one,16).toByteArray();
         byte[] x2 = new BigInteger(two,16).toByteArray();
@@ -40,6 +44,8 @@ public class Crypto {
         }
         return result;
     }
+
+    //Set 1 Challenge 3
     static byte[] singleByteXOR(String hex){
         return singleByteXOR(new BigInteger(hex,16).toByteArray());
     }
@@ -92,6 +98,8 @@ public class Crypto {
         }
         return score;
     }
+
+    //Set 1 Challenge 4
     static byte[] findSingleCharXOR(String file){
         Scanner in;
         String s, best;
@@ -114,6 +122,8 @@ public class Crypto {
         }
         return b;
     }
+
+    //Set 1 Challenge 5
     static byte[] repeatingKeyXOR(String s){
         byte[] source = s.getBytes();
         byte[] xor = new byte[s.length()];
@@ -139,6 +149,7 @@ public class Crypto {
     static int hammingDistance(String a, String b){
         return hammingDistance(a.getBytes(),b.getBytes());
     }
+/*
     static void printFileBytes(byte[] something, int limit) {
         for (int i=0; i < limit; i++) {
             System.out.print(something[i]);
@@ -162,6 +173,7 @@ public class Crypto {
             System.out.println();
         }
     }
+*/
     static int[] keySize(byte[] file){
         int[] keysize= new int[3];
         Arrays.fill(keysize,0);
@@ -183,6 +195,8 @@ public class Crypto {
             }
         }return keysize;
     }
+
+    //Set 1 Challenge 6
     static byte[] key(){
         Scanner in;
         String s="";
@@ -254,6 +268,8 @@ public class Crypto {
             }
         return decryptedFile;
     }
+
+    //Set 1 Challenge 7
     static byte[] aesECBDecrypt(){
         Scanner in;
         String s="";
@@ -277,4 +293,28 @@ public class Crypto {
         }
         return output;
     }
+
+    //Set 1 Challenge 8
+    static String aesECBFinder(){
+        Scanner in;
+        try {
+            in = new Scanner(new File("8.txt"));
+            while(in.hasNext()){
+                String s=in.nextLine();
+                if(isECB(s)) return s;
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        return "";
+    }
+    static boolean isECB(String s){
+        for(int i=0;i<s.length()/16;i++){
+            String pattern = s.substring(16*i,16*(i+1));
+            String field = s.substring(0,16*i)+s.substring(16*(i+1));
+            if(field.contains(pattern)) return true;
+        }
+        return false;
+    }
+
 }

@@ -43,5 +43,8 @@ public class Main {
         System.out.println("\nSet 1 Challenge 7");
         System.out.println(new String(Crypto.aesECBDecrypt()));
 
+        //Set 1 Challenge 8
+        System.out.println("\nSet 1 Challenge 8");
+        System.out.println(Crypto.aesECBFinder());
     }
 }
